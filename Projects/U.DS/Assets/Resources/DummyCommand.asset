@@ -12,9 +12,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9fa0931005c7d904aa8826490b096f62, type: 3}
   m_Name: DummyCommand
   m_EditorClassIdentifier: 
-  myName: dummy
-  myDescription: This is a dummy
+  myName: Debug
+  myDescription: Debug command for tests
   myAliases:
   - d
   - D
-  - Dummy
+  - DebugCommand

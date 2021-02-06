@@ -7,154 +7,163 @@ namespace DS.UnitTests
 {
 	public class SimpleDebugConsoleTests
 	{
-		[Test]
-		public void Commands_NoCommandsAdded_ReturnsEmptyList()
+		private const string COMMAND_NAME = "name";
+		private const string COMMAND_ALIAS = "alias";
+		private const string INVALID_COMMAND_NAME = "otherName";
+		private IDebugConsole<string> _debugConsole;
+		private Mock<ICommand<string>> _mockCommand;
+		private ICommand<string> _command;
+
+		[SetUp]
+		public void SetUp()
 		{
-			IDebugConsole<string> debugConsole = new SimpleDebugConsole<string>(null, new List<ICommand<string>>());
-			Assert.IsNotNull(debugConsole.Commands);
-			Assert.IsEmpty(debugConsole.Commands);
+			_debugConsole = new SimpleDebugConsole<string>(null, new List<ICommand<string>>());
+			_mockCommand = A.MockCommand(COMMAND_NAME);
+			_command = _mockCommand.Object;
+		}
+
+		#region Constructor
+
+		[Test]
+		public void Constructor_GivenNoCommands_ReturnsEmptyList()
+		{
+			Assert.IsNotNull(_debugConsole.Commands);
+			Assert.IsEmpty(_debugConsole.Commands);
 		}
 
 		[Test]
-		public void Commands_OneCommandAdded_ReturnsListWithCommand()
+		public void Constructor_GivenCommand_HasCommand()
 		{
-			const string mockName = "name";
-			var mockCommand = A.MockCommand(mockName);
-			IDebugConsole<string> debugConsole =
-				new SimpleDebugConsole<string>(null, new List<ICommand<string>> {mockCommand.Object});
-			Assert.IsNotNull(debugConsole.Commands);
-			Assert.IsNotEmpty(debugConsole.Commands);
-			Assert.AreEqual(1, debugConsole.Commands.Count);
-			Assert.AreEqual(mockName, debugConsole.Commands[0].Name);
+			GivenConsoleConstructedWithCommand();
+			Assert.IsNotEmpty(_debugConsole.Commands);
+			HasCommand();
+		}
+
+		#endregion
+
+		#region Commands
+
+		[Test]
+		public void Commands_GivenCommandInList_HasCommand()
+		{
+			var commands = new List<ICommand<string>> {_command};
+			_debugConsole.Commands = commands;
+			HasCommand();
+		}
+
+		#endregion
+
+		#region AddCommand
+
+		[Test]
+		public void AddCommand_GivenCommand_HasCommand()
+		{
+			GivenCommand();
+			HasCommand();
 		}
 
 		[Test]
-		public void Commands_CopyFromOuterList_ReturnsSameList()
+		public void AddCommand_GivenRepeatedCommand_HasCommandOnce()
 		{
-			const string commandName = "name";
-			var mockCommand = A.MockCommand(commandName);
-			IDebugConsole<string> debugConsole = new SimpleDebugConsole<string>(null, new List<ICommand<string>>());
-			var commands = new List<ICommand<string>> {mockCommand.Object};
-			debugConsole.Commands = commands;
-			Assert.IsNotEmpty(debugConsole.Commands);
-			Assert.AreEqual(1, debugConsole.Commands.Count);
-			Assert.AreEqual(commandName, debugConsole.Commands[0].Name);
+			GivenCommand();
+			GivenCommand();
+			Assert.IsNotEmpty(_debugConsole.Commands);
+			Assert.AreEqual(1, _debugConsole.Commands.Count);
+		}
+
+		#endregion
+
+		#region IsValidCommand
+
+		[Test]
+		public void IsValidCommand_GivenCommand_IsValidCommand()
+		{
+			GivenCommand();
+			IsValidCommand(COMMAND_NAME);
 		}
 
 		[Test]
-		public void AddCommand_AddOneCommand_ListContainsCommand()
+		public void IsValidCommand_GivenCommandWithAlias_AliasIsValidCommand()
 		{
-			const string commandName = "name";
-			var mockCommand = A.MockCommand(commandName);
-			IDebugConsole<string> debugConsole = new SimpleDebugConsole<string>(null, new List<ICommand<string>>());
-			debugConsole.AddCommand(mockCommand.Object);
-			Assert.IsNotEmpty(debugConsole.Commands);
-			Assert.AreEqual(1, debugConsole.Commands.Count);
-			Assert.AreEqual(commandName, debugConsole.Commands[0].Name);
+			GivenCommandWithAlias();
+			IsValidCommand(COMMAND_ALIAS);
 		}
 
 		[Test]
-		public void AddCommand_AddOneCommand_IsValidCommand()
+		public void IsValidCommand_GivenInvalidCommandName_ReturnsFalse()
 		{
-			const string commandName = "name";
-			var mockCommand = A.MockCommand(commandName);
-			IDebugConsole<string> debugConsole = new SimpleDebugConsole<string>(null, new List<ICommand<string>>());
-			debugConsole.AddCommand(mockCommand.Object);
-			Assert.IsTrue(debugConsole.IsValidCommand(commandName));
+			bool isValid = _debugConsole.IsValidCommand(INVALID_COMMAND_NAME);
+			Assert.IsFalse(isValid);
+		}
+
+		#endregion
+
+		#region ExecuteCommand
+
+		[Test]
+		public void ExecuteCommand_GivenInvalidCommandName_DoesNotExecute()
+		{
+			GivenCommand();
+			_debugConsole.ExecuteCommand(INVALID_COMMAND_NAME, null);
+			CommandExecutes(Times.Never());
 		}
 
 		[Test]
-		public void AddCommand_AddOneCommandWithAlias_AliasIsValidCommand()
+		public void ExecuteCommand_GivenCommand_ExecutesOnce()
 		{
-			const string commandName = "name";
-			const string alias = "alias";
-			var mockCommand = A.MockCommand(commandName).WithAlias(alias);
-			IDebugConsole<string> debugConsole = new SimpleDebugConsole<string>(null, new List<ICommand<string>>());
-			debugConsole.AddCommand(mockCommand.Object);
-			Assert.IsTrue(debugConsole.IsValidCommand(alias));
+			GivenCommand();
+			_debugConsole.ExecuteCommand(COMMAND_NAME, null);
+			CommandExecutes(Times.Once());
 		}
 
 		[Test]
-		public void AddCommand_AddCommandThatIsAlreadyInList_ListContainsCommandOnce()
+		public void ExecuteCommand_GivenCommandWithAlias_Executes()
 		{
-			const string commandName = "name";
-			var mockCommand = A.MockCommand(commandName);
-			IDebugConsole<string> debugConsole =
-				new SimpleDebugConsole<string>(null, new List<ICommand<string>> {mockCommand.Object});
-			debugConsole.AddCommand(mockCommand.Object);
-			Assert.IsNotEmpty(debugConsole.Commands);
-			Assert.AreEqual(1, debugConsole.Commands.Count);
-			Assert.AreEqual(commandName, debugConsole.Commands[0].Name);
+			GivenCommandWithAlias();
+			_debugConsole.ExecuteCommand(COMMAND_ALIAS, null);
+			CommandExecutes(Times.Once());
 		}
 
-		[Test]
-		public void IsValidCommand_CommandDoesNotExist_ReturnsFalse()
+		#endregion
+
+		#region Given
+
+		private void GivenConsoleConstructedWithCommand()
 		{
-			const string mockName = "name";
-			const string otherName = "otherName";
-			var mock = A.MockCommand(mockName);
-
-			IDebugConsole<string> debugConsole = new SimpleDebugConsole<string>(null, new List<ICommand<string>>
-				{mock.Object});
-
-			Assert.IsFalse(debugConsole.IsValidCommand(otherName));
+			_debugConsole = new SimpleDebugConsole<string>(null, new List<ICommand<string>> {_command});
 		}
 
-		[Test]
-		public void IsValidCommand_CommandExists_ReturnsTrue()
+		private void GivenCommand()
 		{
-			const string mockName = "name";
-			var mock = A.MockCommand(mockName);
-			IDebugConsole<string> debugConsole = new SimpleDebugConsole<string>(null, new List<ICommand<string>>
-				{mock.Object});
-			Assert.IsTrue(debugConsole.IsValidCommand(mockName));
+			_debugConsole.AddCommand(_command);
 		}
 
-		[Test]
-		public void ExecuteCommand_CommandDoesNotExist_DoesNotExecute()
+		private void GivenCommandWithAlias()
 		{
-			const string mockName = "name";
-			const string otherName = "otherName";
-			var mockCommand = A.MockCommand(mockName);
-			IDebugConsole<string> debugConsole =
-				new SimpleDebugConsole<string>(null, new List<ICommand<string>> {mockCommand.Object});
-			debugConsole.ExecuteCommand(otherName, null);
-			mockCommand.Verify(c => c.Execute(null, null), Times.Never);
+			_mockCommand = A.MockCommand(COMMAND_NAME).WithAlias(COMMAND_ALIAS);
+			_command = _mockCommand.Object;
+			_debugConsole.AddCommand(_command);
 		}
 
-		[Test]
-		public void ExecuteCommand_CommandDoesExists_Executes()
+		#endregion
+
+		#region Assert
+
+		private void HasCommand()
 		{
-			const string mockName = "name";
-			var mockCommand = A.MockCommand(mockName);
-			IDebugConsole<string> debugConsole =
-				new SimpleDebugConsole<string>(null, new List<ICommand<string>> {mockCommand.Object});
-			debugConsole.ExecuteCommand(mockName, null);
-			mockCommand.Verify(c => c.Execute(null, null), Times.Once);
+			Assert.AreEqual(COMMAND_NAME, _debugConsole.Commands[0].Name);
 		}
 
-		[Test]
-		public void ExecuteCommand_ParameterIsCommandAlias_Executes()
+		private void IsValidCommand(string commandName)
 		{
-			const string mockName = "name";
-			const string alias = "alias";
-			var mockCommand = A.MockCommand(mockName).WithAlias(alias);
-			IDebugConsole<string> debugConsole =
-				new SimpleDebugConsole<string>(null, new List<ICommand<string>> {mockCommand.Object});
-			debugConsole.ExecuteCommand(alias, null);
-			mockCommand.Verify(c => c.Execute(null, null), Times.Once);
+			Assert.IsTrue(_debugConsole.IsValidCommand(commandName));
 		}
 
-		[Test]
-		public void AddCommand_AddCommandWithOneAlias_AliasExecutes()
+		private void CommandExecutes(Times times)
 		{
-			const string mockName = "name";
-			const string alias = "alias";
-			var mockCommand = A.MockCommand(mockName).WithAlias(alias);
-			IDebugConsole<string> debugConsole = new SimpleDebugConsole<string>(null, new List<ICommand<string>>());
-			debugConsole.AddCommand(mockCommand.Object);
-			debugConsole.ExecuteCommand(alias, null);
-			mockCommand.Verify(c => c.Execute(null, null), Times.Once);
+			_mockCommand.Verify(c => c.Execute(null, null), times);
 		}
+
+		#endregion
 	}
 }

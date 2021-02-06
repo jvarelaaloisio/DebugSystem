@@ -7,74 +7,91 @@ namespace DS.UnitTests
 {
 	public class TextDataRetrieverTests
 	{
-		private struct SourceHelper
+		private const string DATA1 = "data1";
+		private const string DATA2 = "data2";
+		private IDataRetriever<string> _dataRetriever;
+
+		private readonly Func<string> _method1 = () => DATA1;
+		private readonly Func<string> _method2 = () => DATA2;
+
+		[SetUp]
+		public void SetUp()
 		{
-			public string GetData()
-			{
-				return "data";
-			}
+			_dataRetriever = new TextDataRetriever();
 		}
-	
+
+		#region AddDataSource
+
 		[Test]
-		public void AddDataSource_OneDataSource_ContainsSource()
+		public void AddDataSource_GivenMethod_AddsMethod()
 		{
-			IDataRetriever<string> dataRetriever = new TextDataRetriever();
-			SourceHelper helper = new SourceHelper();
-			Func<string> getData = helper.GetData;
-			dataRetriever.AddDataSource(getData);
-			Assert.IsNotNull(dataRetriever.OnRetrieveData);
-			Assert.IsNotEmpty(dataRetriever.OnRetrieveData.GetInvocationList());
-			Assert.IsTrue(dataRetriever.OnRetrieveData.GetInvocationList().Contains(getData));
+			GivenMethod1();
+			Assert.IsNotNull(_dataRetriever.OnRetrieveData);
+			Assert.IsNotEmpty(_dataRetriever.OnRetrieveData.GetInvocationList());
+			Assert.IsTrue(_dataRetriever.OnRetrieveData.GetInvocationList().Contains(_method1));
 		}
-		
+
+		#endregion
+
+		#region RemoveDataSource
+
 		[Test]
-		public void RemoveDataSource_DataSourceRemoved_DoesNotContainSource()
+		public void RemoveDataSource_GivenMethod_RemovesMethod()
 		{
-			SourceHelper helper = new SourceHelper();
-			Func<string> getData = helper.GetData;
-			IDataRetriever<string> dataRetriever = new TextDataRetriever();
-			dataRetriever.AddDataSource(helper.GetData);
-			dataRetriever.RemoveDataSource(helper.GetData);
-			Assert.IsFalse(dataRetriever.OnRetrieveData.GetInvocationList().Contains(getData));
+			GivenMethod1();
+			_dataRetriever.RemoveDataSource(_method1);
+			Assert.IsNull(_dataRetriever.OnRetrieveData);
+		}
+
+		#endregion
+
+		#region TryRetrieveData
+
+		[Test]
+		public void TryRetrieveData_GivenNoMethod_ReturnsFalse()
+		{
+			Assert.IsFalse(_dataRetriever.TryRetrieveData(out _));
 		}
 
 		[Test]
-		public void TryRetrieveData_NoDelegateAdded_ReturnsFalse()
+		public void TryRetrieveData_GivenMethod_ReturnsTrue()
 		{
-			IDataRetriever<string> dataRetriever = new TextDataRetriever();
-			Assert.IsFalse(dataRetriever.TryRetrieveData(out _));
+			GivenMethod1();
+			Assert.IsTrue(_dataRetriever.TryRetrieveData(out _));
 		}
 
 		[Test]
-		public void TryRetrieveData_OneDelegateAdded_ReturnsTrue()
+		public void TryRetrieveData_GivenTwoMethods_RetrievesData()
 		{
-			IDataRetriever<string> dataRetriever = new TextDataRetriever();
-			dataRetriever.AddDataSource(() => "data");
-			Assert.IsTrue(dataRetriever.TryRetrieveData(out _));
+			GivenMethod1();
+			GivenMethod2();
+			_dataRetriever.TryRetrieveData(out string retrievedData);
+			Assert.AreEqual($"{DATA1}{DATA2}", retrievedData);
 		}
 
 		[Test]
-		public void TryRetrieveData_TwoDelegatesAdded_RetrievesData()
+		public void TryRetrieveData_GivenModifier_RetrievesDataModified()
 		{
-			const string data1 = "data1";
-			const string data2 = "data2";
-			IDataRetriever<string> dataRetriever = new TextDataRetriever();
-			dataRetriever.AddDataSource(() => data1);
-			dataRetriever.AddDataSource(() => data2);
-			dataRetriever.TryRetrieveData(out string retrievedData);
-			Assert.AreEqual($"{data1}{data2}", retrievedData);
+			_dataRetriever = new TextDataRetriever((str) => str + "\n");
+			GivenMethod1();
+			GivenMethod2();
+			_dataRetriever.TryRetrieveData(out string retrievedData);
+			Assert.AreEqual($"{DATA1}\n{DATA2}\n", retrievedData);
 		}
 
-		[Test]
-		public void TryRetrieveData_TwoDelegatesWithModifier_RetrievesDataModified()
+		#endregion
+
+		#region Given
+
+		private void GivenMethod1()
 		{
-			const string data1 = "data1";
-			const string data2 = "data2";
-			IDataRetriever<string> dataRetriever = new TextDataRetriever((str) => str + "\n");
-			dataRetriever.AddDataSource(() => data1);
-			dataRetriever.AddDataSource(() => data2);
-			dataRetriever.TryRetrieveData(out string retrievedData);
-			Assert.AreEqual($"{data1}\n{data2}\n", retrievedData);
+			_dataRetriever.AddDataSource(_method1);
 		}
+		private void GivenMethod2()
+		{
+			_dataRetriever.AddDataSource(_method2);
+		}
+
+		#endregion
 	}
 }
