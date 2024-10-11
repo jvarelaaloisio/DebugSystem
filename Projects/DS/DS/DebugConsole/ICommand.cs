@@ -8,6 +8,6 @@ namespace DS.DebugConsole
 		T Name { get; }
 		IEnumerable<T> Aliases { get; }
 		T Description { get; }
-		void Execute(T[] args, Action<T> giveFeedBack);
+		void Execute(Action<T> giveFeedBack, params T[] args);
 	}
 }

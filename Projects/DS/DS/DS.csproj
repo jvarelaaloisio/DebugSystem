@@ -38,8 +38,8 @@
         <Reference Include="System.Xml" />
     </ItemGroup>
     <ItemGroup>
-        <Compile Include="DataRetriever\IDataRetriever.cs" />
-        <Compile Include="DataRetriever\TextDataRetriever.cs" />
+        <Compile Include="DataRetriever\IRetriever.cs" />
+        <Compile Include="DataRetriever\StringRetriever.cs" />
         <Compile Include="DebugConsole\ICommand.cs" />
         <Compile Include="DebugConsole\IDebugConsole.cs" />
         <Compile Include="DebugConsole\SimpleDebugConsole.cs" />

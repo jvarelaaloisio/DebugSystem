@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using System.Data;
+using System.Linq;
 using DS.DebugConsole;
 using Moq;
 using NUnit.Framework;
@@ -7,9 +9,9 @@ namespace DS.UnitTests
 {
 	public class SimpleDebugConsoleTests
 	{
-		private const string COMMAND_NAME = "name";
-		private const string COMMAND_ALIAS = "alias";
-		private const string INVALID_COMMAND_NAME = "otherName";
+		private const string CommandName = "name";
+		private const string CommandAlias = "alias";
+		private const string InvalidCommandName = "otherName";
 		private IDebugConsole<string> _debugConsole;
 		private Mock<ICommand<string>> _mockCommand;
 		private ICommand<string> _command;
@@ -17,8 +19,8 @@ namespace DS.UnitTests
 		[SetUp]
 		public void SetUp()
 		{
-			_debugConsole = new SimpleDebugConsole<string>(null, new List<ICommand<string>>());
-			_mockCommand = A.MockCommand(COMMAND_NAME);
+			_debugConsole = new SimpleDebugConsole<string>(null);
+			_mockCommand = A.MockCommand(CommandName);
 			_command = _mockCommand.Object;
 		}
 
@@ -36,7 +38,7 @@ namespace DS.UnitTests
 		{
 			GivenConsoleConstructedWithCommand();
 			Assert.IsNotEmpty(_debugConsole.Commands);
-			HasCommand();
+			VerifyThatHasCommand();
 		}
 
 		#endregion
@@ -46,9 +48,9 @@ namespace DS.UnitTests
 		[Test]
 		public void Commands_GivenCommandInList_HasCommand()
 		{
-			var commands = new List<ICommand<string>> {_command};
+			var commands = new HashSet<ICommand<string>> {_command};
 			_debugConsole.Commands = commands;
-			HasCommand();
+			VerifyThatHasCommand();
 		}
 
 		#endregion
@@ -58,16 +60,62 @@ namespace DS.UnitTests
 		[Test]
 		public void AddCommand_GivenCommand_HasCommand()
 		{
-			GivenCommand();
-			HasCommand();
+			GivenACommand();
+			VerifyThatHasCommand();
 		}
 
 		[Test]
-		public void AddCommand_GivenRepeatedCommand_HasCommandOnce()
+		public void AddCommand_GivenDuplicateCommand_ThrowsDuplicateException()
 		{
-			GivenCommand();
-			GivenCommand();
-			Assert.IsNotEmpty(_debugConsole.Commands);
+			GivenACommand();
+			Assert.Throws<DuplicateNameException>(GivenACommand);
+		}
+		
+		[Test]
+		public void AddCommand_GivenDuplicateCommand_HasCommandOnce()
+		{
+			GivenACommand();
+			try
+			{
+				GivenACommand();
+			}
+			catch { /*ignored*/ }
+
+			VerifyThatHasCommand();
+			Assert.AreEqual(1, _debugConsole.Commands.Count);
+		}
+
+		#endregion
+		
+		#region TryAddCommand
+
+		[Test]
+		public void TryAddCommand_GivenCommand_ReturnsTrue()
+		{
+			Assert.IsTrue(_debugConsole.TryAddCommand(_command));
+		}
+		
+		[Test]
+		public void TryAddCommand_GivenCommand_HasCommand()
+		{
+			_debugConsole.TryAddCommand(_command);
+			VerifyThatHasCommand();
+		}
+
+		[Test]
+		public void TryAddCommand_GivenDuplicateCommand_ReturnsFalse()
+		{
+			GivenACommand();
+			Assert.IsFalse(_debugConsole.TryAddCommand(_command));
+		}
+		
+		[Test]
+		public void TryAddCommand_GivenDuplicateCommand_HasCommandOnce()
+		{
+			GivenACommand();
+			_debugConsole.TryAddCommand(_command);
+
+			VerifyThatHasCommand();
 			Assert.AreEqual(1, _debugConsole.Commands.Count);
 		}
 
@@ -78,21 +126,21 @@ namespace DS.UnitTests
 		[Test]
 		public void IsValidCommand_GivenCommand_IsValidCommand()
 		{
-			GivenCommand();
-			IsValidCommand(COMMAND_NAME);
+			GivenACommand();
+			VerifyThatIsValidCommand(CommandName);
 		}
 
 		[Test]
 		public void IsValidCommand_GivenCommandWithAlias_AliasIsValidCommand()
 		{
 			GivenCommandWithAlias();
-			IsValidCommand(COMMAND_ALIAS);
+			VerifyThatIsValidCommand(CommandAlias);
 		}
 
 		[Test]
 		public void IsValidCommand_GivenInvalidCommandName_ReturnsFalse()
 		{
-			bool isValid = _debugConsole.IsValidCommand(INVALID_COMMAND_NAME);
+			bool isValid = _debugConsole.IsValidCommand(InvalidCommandName);
 			Assert.IsFalse(isValid);
 		}
 
@@ -103,25 +151,25 @@ namespace DS.UnitTests
 		[Test]
 		public void ExecuteCommand_GivenInvalidCommandName_DoesNotExecute()
 		{
-			GivenCommand();
-			_debugConsole.ExecuteCommand(INVALID_COMMAND_NAME, null);
-			CommandExecutes(Times.Never());
+			GivenACommand();
+			_debugConsole.ExecuteCommand(InvalidCommandName);
+			VerifyThatCommandExecutes(Times.Never());
 		}
 
 		[Test]
 		public void ExecuteCommand_GivenCommand_ExecutesOnce()
 		{
-			GivenCommand();
-			_debugConsole.ExecuteCommand(COMMAND_NAME, null);
-			CommandExecutes(Times.Once());
+			GivenACommand();
+			_debugConsole.ExecuteCommand(CommandName);
+			VerifyThatCommandExecutes(Times.Once());
 		}
 
 		[Test]
 		public void ExecuteCommand_GivenCommandWithAlias_Executes()
 		{
 			GivenCommandWithAlias();
-			_debugConsole.ExecuteCommand(COMMAND_ALIAS, null);
-			CommandExecutes(Times.Once());
+			_debugConsole.ExecuteCommand(CommandAlias);
+			VerifyThatCommandExecutes(Times.Once());
 		}
 
 		#endregion
@@ -130,17 +178,17 @@ namespace DS.UnitTests
 
 		private void GivenConsoleConstructedWithCommand()
 		{
-			_debugConsole = new SimpleDebugConsole<string>(null, new List<ICommand<string>> {_command});
+			_debugConsole = new SimpleDebugConsole<string>(null, _command);
 		}
 
-		private void GivenCommand()
+		private void GivenACommand()
 		{
 			_debugConsole.AddCommand(_command);
 		}
 
 		private void GivenCommandWithAlias()
 		{
-			_mockCommand = A.MockCommand(COMMAND_NAME).WithAlias(COMMAND_ALIAS);
+			_mockCommand = A.MockCommand(CommandName).WithAlias(CommandAlias);
 			_command = _mockCommand.Object;
 			_debugConsole.AddCommand(_command);
 		}
@@ -149,19 +197,23 @@ namespace DS.UnitTests
 
 		#region Assert
 
-		private void HasCommand()
+		private void VerifyThatHasCommand()
 		{
-			Assert.AreEqual(COMMAND_NAME, _debugConsole.Commands[0].Name);
+			Assert.IsNotEmpty(_debugConsole.Commands);
+			Assert.Contains(_command, _debugConsole.Commands.ToArray());
+			var firstValue = _debugConsole.Commands.FirstOrDefault();
+			Assert.IsNotNull(firstValue);
+			Assert.AreEqual(CommandName, firstValue.Name);
 		}
 
-		private void IsValidCommand(string commandName)
+		private void VerifyThatIsValidCommand(string commandName)
 		{
 			Assert.IsTrue(_debugConsole.IsValidCommand(commandName));
 		}
 
-		private void CommandExecutes(Times times)
+		private void VerifyThatCommandExecutes(Times times)
 		{
-			_mockCommand.Verify(c => c.Execute(null, null), times);
+			_mockCommand.Verify(c => c.Execute(null), times);
 		}
 
 		#endregion
